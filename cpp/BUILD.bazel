@@ -78,6 +78,7 @@ cc_library(
     srcs = glob([
         "src/actor/actor.cpp",
     ]),
+    linkstatic = True,
     hdrs = glob([ "src/actor/actor.h"]),
     copts = COPTS,
     deps = [
@@ -94,6 +95,7 @@ cc_binary(
     ]),
     copts = COPTS,
     linkstatic = False,
+    visibility = ["//visibility:public"],
     deps = [
         "ray_api"
     ],
