@@ -2,6 +2,7 @@
 # C/C++ documentation: https://docs.bazel.build/versions/master/be/c-cpp.html
 
 load("//bazel:ray.bzl", "COPTS")
+load("@com_github_grpc_grpc//bazel:cython_library.bzl", "pyx_library")
 
 cc_library(
     name = "ray_api",
@@ -44,6 +45,60 @@ cc_library(
     ],
 )
 
+pyx_library(
+    name = "sample",
+    srcs = glob(["src/example/sample.pyx"]),
+    deps = [
+        "ray_api",
+
+    ],
+)
+
+cc_library(
+    name = "R",
+    srcs = glob([ "src/rectangle/Rectangle.cpp"]),
+    hdrs = glob([ "src/rectangle/Rectangle.h"]),
+    copts = COPTS,
+    deps = [
+        "ray_api"
+    ],
+)
+
+pyx_library(
+    name = "rect",
+    srcs = glob(["src/rectangle/Rectangle.pxd", "src/rectangle/rect.pyx"]),
+    deps = [
+         "R"
+    ],
+)
+
+
+cc_library(
+    name = "actor",
+    srcs = glob([
+        "src/actor/actor.cpp",
+    ]),
+    hdrs = glob([ "src/actor/actor.h"]),
+    copts = COPTS,
+    deps = [
+        "ray_api"
+    ],
+)
+
+cc_binary(
+    name = "actor_bin",
+    testonly = 1,
+    srcs = glob([
+        "src/actor/actor.cpp",
+        "src/actor/actor.h"
+    ]),
+    copts = COPTS,
+    linkstatic = False,
+    deps = [
+        "ray_api"
+    ],
+)
+
 cc_binary(
     name = "example",
     testonly = 1,
@@ -53,7 +108,7 @@ cc_binary(
     copts = COPTS,
     linkstatic = False,
     deps = [
-        "ray_api",
+        "ray_api"
     ],
 )
 
