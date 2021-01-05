@@ -1,7 +1,7 @@
 # Bazel build
 # C/C++ documentation: https://docs.bazel.build/versions/master/be/c-cpp.html
 
-load("//bazel:ray.bzl", "COPTS")
+load("//bazel:ray.bzl", "COPTS", "copy_to_workspace")
 load("@com_github_grpc_grpc//bazel:cython_library.bzl", "pyx_library")
 
 cc_library(
@@ -58,7 +58,10 @@ cc_library(
     name = "R",
     srcs = glob([ "src/rectangle/Rectangle.cpp"]),
     hdrs = glob([ "src/rectangle/Rectangle.h"]),
+    linkstatic = True,
+    visibility = ["//visibility:public"],
     copts = COPTS,
+    strip_include_prefix = "src",
     deps = [
         "ray_api"
     ],
@@ -68,10 +71,27 @@ pyx_library(
     name = "rect",
     srcs = glob(["src/rectangle/Rectangle.pxd", "src/rectangle/rect.pyx"]),
     deps = [
-         "R"
+         "//cpp:R"
     ],
 )
 
+copy_to_workspace(
+    name = "cp_rect",
+    srcs = ["src/rectangle/rect.so"],
+    dstdir = "src/rectangle",
+)
+
+genrule(
+    name = "rect_pkg",
+    srcs = [
+        ":cp_rect",
+    ],
+    outs = ["rect_pkg.out"],
+    cmd = """
+        echo "$${PWD}" > $@
+    """,
+    local = 1,
+)
 
 cc_library(
     name = "actor",
@@ -79,13 +99,39 @@ cc_library(
         "src/actor/actor.cpp",
     ]),
     linkstatic = True,
+    strip_include_prefix = "src",
     hdrs = glob([ "src/actor/actor.h"]),
+    visibility = ["//visibility:public"],
     copts = COPTS,
     deps = [
         "ray_api"
     ],
 )
 
+pyx_library(
+    name = "router",
+    srcs = glob(["src/actor/actor.pxd", "src/actor/ac.pyx"]),
+    deps = [
+         "actor"
+    ],
+)
+genrule(
+    name = "ray_actor_pkg",
+    srcs = [
+        "actor",
+        "ray_api",
+        "router"
+    ],
+    outs = ["ray_actor_pkg.out"],
+    cmd = """
+        WORK_DIR="$$(pwd)" &&
+        mkdir -p "$$WORK_DIR/python/ray/core/src/ray/cpp/" &&
+        cp -f $(location actor) "$$WORK_DIR/python/ray/core/src/ray/cpp/default_worker" &&
+        cp -f $(locations ray_api) "$$WORK_DIR/python/ray/core/src/ray/cpp/" &&
+        echo "$$WORK_DIR" > $@
+    """,
+    local = 1,
+)
 cc_binary(
     name = "actor_bin",
     testonly = 1,
